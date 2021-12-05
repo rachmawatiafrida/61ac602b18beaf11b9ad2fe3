@@ -1,0 +1,142 @@
+name: UPDATE_POST
+
+on:
+  workflow_dispatch:
+    inputs:
+      jobId:
+        description: 'Job ID'
+        required: true
+      commitMessage:
+        description: 'Commit message'
+        required: true
+      currentPost:
+        description: 'Current post'
+        required: true
+      postPerDay:
+        description: 'Post per day'
+        required: true
+
+jobs:
+  update-post:
+    name: UPDATE_POST
+    runs-on: ubuntu-latest
+    env:
+      API_URL: ${{ secrets.API_URL }}
+      WORKER_API_URL: ${{ secrets.WORKER_API_URL }}
+      SITE_ID: ${{ secrets.SITE_ID }}
+      USER_ID: ${{ secrets.USER_ID }}
+      JOB_ID: ${{ github.event.inputs.jobId }}
+      SITE_URL: https://tespos.wall-ix.com/
+      SITEMAP_FILE: x_sitemap.xml
+
+    steps:
+      - name: CHECKOUT_REPO
+        uses: actions/checkout@v2
+
+      - name: SETUP_NODE
+        uses: actions/setup-node@v2-beta
+        with:
+          node-version: 12
+
+      - name: PULL_SCRIPTS
+        env:
+          STEP_ID: PULL_SCRIPTS
+          SCRIPTS_URL: ${{ secrets.SILENTMONSTER_SCRIPTS }}
+        run: |
+          git clone --progress $SCRIPTS_URL scripts
+          rm -rf scripts/.git
+          mv scripts/* .github/scripts
+          rm -rf scripts
+
+      - name: PULL_ACTIONS
+        env:
+          STEP_ID: PULL_ACTIONS
+          ACTIONS_URL: ${{ secrets.SILENTMONSTER_ACTIONS }}
+        run: |
+          git clone --progress $ACTIONS_URL scripts
+          rm -rf actions/.git
+          mv scripts/* .github/actions
+          rm -rf actions
+
+      - name: PULL_THEME
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: PULL_THEME
+          THEME_URL: ${{ secrets.SILENTMONSTER_THEME }}
+          SITE_THEME: zwallpaper
+
+      - name: INSTALL_HUGO_AND_CLOUD_CLI
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: INSTALL_HUGO_AND_CLOUD_CLI
+          CLOUD_TYPE: NETLIFY
+
+      - name: INSTALL_DEPENDENCIES
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: INSTALL_DEPENDENCIES
+
+      - name: CREATE_POST_DATA
+        uses: ./.github/actions/content-maker
+        timeout-minutes: 180
+        continue-on-error: true
+        env:
+          STEP_ID: CREATE_POST_DATA
+        with:
+          contentType: IMAGE
+          keywordFile: keywords.txt
+          postTemplate: template.ejs
+          currentPost: ${{ github.event.inputs.currentPost }}
+          postPerDay: ${{ github.event.inputs.postPerDay }}
+
+      - name: BUILD_HTML
+        timeout-minutes: 90
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: BUILD_HTML
+
+      - name: OPTIMIZE_SITEMAP
+        uses: ./.github/actions/sitemap-optimizer
+        env:
+          STEP_ID: OPTIMIZE_SITEMAP
+
+      - name: DEPLOY_WEB
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: DEPLOY_WEB
+          CLOUD_TYPE: NETLIFY
+          NETLIFY_ID: ${{ secrets.NETLIFY_ID }}
+          NETLIFY_TOKEN: ${{ secrets.NETLIFY_TOKEN }}
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+
+      - name: PUSH_REPO
+        uses: ./.github/actions/publish-to-github-action
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          BRANCH_NAME: main
+          COMMIT_MESSAGE: ${{ github.event.inputs.commitMessage }}
+
+      - name: PING_SITEMAP
+        uses: ./.github/actions/sitemap-ping
+        env:
+          STEP_ID: PING_SITEMAP
+        with:
+          sitemapUrl: https://tespos.wall-ix.com/x_sitemap.xml
+
+      - name: ADD_SITE_TO_INDEXER
+        uses: ./.github/actions/g-site-publisher
+        env:
+          STEP_ID: ADD_SITE_TO_INDEXER
+        with:
+          siteId: ${{ github.event.repository.name }}
+          siteUrl: ${{ env.SITE_URL }}
+          sitemapFile: ${{ env.SITEMAP_FILE }}
+
+      - name: SET_REPO_PRIVATE
+        uses: ./.github/actions/set-private-repo
+        env:
+          STEP_ID: SET_REPO_PRIVATE
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+          owner: ${{ github.actor }}
+          repo: ${{ github.event.repository.name }}
