@@ -1,0 +1,92 @@
+baseURL = "https://tespos.wall-ix.com/"
+languageCode = "en-us"
+theme = "zwallpaper"
+
+enableEmoji = true
+enableRobotsTXT = true
+canonifyURLs = true
+
+disableKinds = ["section", "taxonomy", "taxonomyTerm", "robotsTXT"]
+
+[params]
+  title = "tespos"
+  description = "tespos"
+  tagline = "tespos"
+  useFaviconGenerator = false # https://www.favicon-generator.org/
+
+  # whoami
+  author = "DK"
+  logo = "https://via.placeholder.com/512.png?text=DK"
+  header = "Week In Memes"
+
+  # service
+  googleTagManager = ""
+  histats = ""
+  cookieConsent = false
+
+  # ads
+  socialBar = ''''''
+  banner300x250 = ''''''
+  banner468x60 = ''''''
+  banner728x90 = ''''''
+  bannerFixed = ''''''
+  bannerInArticle = ''''''
+  popUnder = ''''''
+  directLink = '''https://versatileadvancement.com/vwmt9xadk?key=552174a3f8a5208aa13d91f6172bf6a3'''
+
+[permalinks]
+  post = "/:slug/"
+  page = "/page/:slug/"
+
+[menu]
+  [[main]]
+    identifier = "page"
+    name = "Home"
+    url = "/"
+    weight = 1
+
+  [[main]]
+    identifier = "page"
+    name = "DMCA"
+    url = "/page/dmca/"
+    weight = 2
+
+  [[main]]
+    identifier = "page"
+    name = "Contact"
+    url = "/page/contact/"
+    weight = 3
+
+  [[main]]
+    identifier = "page"
+    name = "Privacy Policy"
+    url = "/page/privacy-policy/"
+    weight = 4
+
+  [[main]]
+    identifier = "page"
+    name = "Copyright"
+    url = "/page/copyright/"
+    weight = 5
+
+[minify]
+  minifyOutput = true
+
+[outputs]
+  home = ["RSS", "HTML", "JSON"]
+
+[outputFormats]
+  [outputFormats.RSS]
+    mediaType = "application/rss"
+    baseName = "x_feed"
+
+[sitemap]
+  changefreq = "monthly"
+  filename = "x_sitemap.xml"
+  priority = 0.7
+
+[markup]
+  defaultMarkdownHandler = "goldmark"
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
