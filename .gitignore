@@ -1,0 +1,8 @@
+.github/actions
+.github/scripts
+node_modules
+resources
+actions
+scripts
+public
+themes
