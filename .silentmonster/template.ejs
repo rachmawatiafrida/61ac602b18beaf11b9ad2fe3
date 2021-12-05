@@ -1,0 +1,29 @@
+<% var web = collect(web); -%>
+---
+title: "<%- title %>"
+description: "<%- String(web.shuffle().take(1).implode('. ')).replace(/\\/g, '') %>"
+slug: "<%= slug %>"
+engine: "<%= engine %>"
+cover: "<%- content[0].thumbnail -%>"
+date: "<%= publishDate %>"
+author: "<%- chance.name() %>"
+ratingValue: "<%- chance.floating({ min: 1.0, max: 5.0 }).toFixed(1) %>"
+reviewCount: "<%- chance.integer({ min: 1, max: 35 }) %>"
+images:
+<% if(content.length > 0){ -%>
+  <%_ for (var i = 0; i < content.length; i++) { -%>
+  - image: "<%- String(content[i].url).replace(/\\/g, '') -%>"
+    thumbnail: "<%- String(content[i].thumbnail).replace(/\\/g, '') -%>"
+    caption: "<%- String(content[i].caption).replace(/\\/g, '') -%>"
+  <%_ } -%>
+<% } -%>
+tags:
+<% if(tags.length > 0){ -%>
+  <%_ for (var i = 0; i < tags.length; i++) { -%>
+  - "<%- tags[i] -%>"
+  <%_ } -%>
+<% } -%>
+draft: false
+type: post
+---
+
