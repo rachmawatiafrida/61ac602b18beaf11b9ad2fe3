@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+User-agent: AhrefsBot
+User-agent: dotbot
+User-agent: exabot
+User-agent: gigabot
+User-agent: ia_archiver
+User-agent: MJ12bot
+User-agent: 007ac9
+User-agent: BLEXBot
+User-agent: SemrushBot
+User-agent: SemrushBot-SA
+Disallow: /
