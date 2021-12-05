@@ -1,0 +1,185 @@
+name: DEPLOY
+
+on:
+  workflow_dispatch:
+    inputs:
+      jobId:
+        description: 'Job ID'
+        required: true
+      commitMessage:
+        description: 'Commit message'
+        required: true
+      initPostCount:
+        description: 'Init post count'
+        required: false
+      currentPost:
+        description: 'Current post'
+        required: true
+      postPerDay:
+        description: 'Post per day'
+        required: true
+
+jobs:
+  deploy:
+    name: DEPLOY
+    runs-on: ubuntu-latest
+    env:
+      API_URL: ${{ secrets.API_URL }}
+      WORKER_API_URL: ${{ secrets.WORKER_API_URL }}
+      SITE_ID: ${{ secrets.SITE_ID }}
+      USER_ID: ${{ secrets.USER_ID }}
+      JOB_ID: ${{ github.event.inputs.jobId }}
+      SITE_URL: https://tespos.wall-ix.com/
+      SITEMAP_FILE: x_sitemap.xml
+
+    steps:
+      - name: CHECKOUT_REPO
+        uses: actions/checkout@v2
+
+      - name: SETUP_NODE
+        uses: actions/setup-node@v2-beta
+        with:
+          node-version: 12
+
+      - name: PULL_SCRIPTS
+        env:
+          STEP_ID: PULL_SCRIPTS
+          SCRIPTS_URL: ${{ secrets.SILENTMONSTER_SCRIPTS }}
+        run: |
+          git clone --progress $SCRIPTS_URL scripts
+          rm -rf scripts/.git
+          mv scripts/* .github/scripts
+          rm -rf scripts
+
+      - name: PULL_ACTIONS
+        env:
+          STEP_ID: PULL_ACTIONS
+          ACTIONS_URL: ${{ secrets.SILENTMONSTER_ACTIONS }}
+        run: |
+          git clone --progress $ACTIONS_URL scripts
+          rm -rf actions/.git
+          mv scripts/* .github/actions
+          rm -rf actions
+
+      - name: PULL_TEMPLATE
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: PULL_TEMPLATE
+          TEMPLATE_URL: ${{ secrets.SILENTMONSTER_TEMPLATE }}
+
+      - name: PULL_THEME
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: PULL_THEME
+          THEME_URL: ${{ secrets.SILENTMONSTER_THEME }}
+          SITE_THEME: zwallpaper
+
+      - name: INSTALL_HUGO_AND_CLOUD_CLI
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: INSTALL_HUGO_AND_CLOUD_CLI
+          CLOUD_TYPE: NETLIFY
+
+      - name: INSTALL_DEPENDENCIES
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: INSTALL_DEPENDENCIES
+
+      - name: CREATE_POST_DATA
+        uses: ./.github/actions/content-maker
+        timeout-minutes: 180
+        continue-on-error: true
+        env:
+          STEP_ID: CREATE_POST_DATA
+        with:
+          contentType: IMAGE
+          keywordFile: keywords.txt
+          postTemplate: template.ejs
+          initPostCount: ${{ github.event.inputs.initPostCount }}
+          currentPost: ${{ github.event.inputs.currentPost }}
+          postPerDay: ${{ github.event.inputs.postPerDay }}
+
+      - name: PUSH_REPO
+        uses: ./.github/actions/publish-to-github-action
+        env:
+          STEP_ID: PUSH_REPO
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          BRANCH_NAME: main
+          COMMIT_MESSAGE: ${{ github.event.inputs.commitMessage }}
+
+      - name: BUILD_HTML
+        timeout-minutes: 90
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: BUILD_HTML
+
+      - name: OPTIMIZE_SITEMAP
+        uses: ./.github/actions/sitemap-optimizer
+        env:
+          STEP_ID: OPTIMIZE_SITEMAP
+
+      - name: DEPLOY_WEB
+        uses: ./.github/actions/exec
+        env:
+          STEP_ID: DEPLOY_WEB
+          CLOUD_TYPE: NETLIFY
+          NETLIFY_ID: ${{ secrets.NETLIFY_ID }}
+          NETLIFY_TOKEN: ${{ secrets.NETLIFY_TOKEN }}
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+
+      - name: SETUP_DNS
+        uses: ./.github/actions/cloudflare-dns
+        env:
+          STEP_ID: SETUP_DNS
+        with:
+          type: CNAME
+          name: tespos
+          content: ${{ secrets.NETLIFY_SITENAME }}
+          ttl: 1
+          proxied: true
+          token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          zone: ${{ secrets.CLOUDFLARE_ZONE }}
+
+      # - name: PUSH_REPO
+      #   uses: ./.github/actions/publish-to-github-action
+      #   env:
+      #     STEP_ID: PUSH_REPO
+      #     GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+      #     BRANCH_NAME: main
+      #     COMMIT_MESSAGE: ${{ github.event.inputs.commitMessage }}
+
+      - name: SETUP_WEBMASTER
+        uses: ./.github/actions/g-search-console
+        env:
+          STEP_ID: SETUP_WEBMASTER
+        with:
+          key: ${{ secrets.OAUTH_KEY }}
+          token: ${{ secrets.SEARCH_CONSOLE_TOKEN }}
+          siteUrl: ${{ env.SITE_URL }}
+          owners: '"felishapeachy-horse-8387@ornate-apricot-299802.iam.gserviceaccount.com,felishapeachy-horse-8387@algebraic-notch-299802.iam.gserviceaccount.com,jodiekurnia-ryu-small-clawed-a@jodiekurnia-ryu-viper-2423.iam.gserviceaccount.com,gabriellaharra-caracal-8887@gabriellaharra-scalloped-hamme.iam.gserviceaccount.com,brandyhunde-flying-frog-4327@brandyhunde-haddock-9103.iam.gserviceaccount.com,renaeludwig-sea-lion-6007@renaeludwig-rhea-3229.iam.gserviceaccount.com,yanirakimble-cow-4493@project12-177506.iam.gserviceaccount.com,peggiebarkley-turtles-2609@project12-176108.iam.gserviceaccount.com,musicyanwm-macaw-1481@musicyanwm-culpeo-7321.iam.gserviceaccount.com,choirulanwarvertex-giant-torto@choirulanwarvertex-cardinal-14.iam.gserviceaccount.com,jombokolop-gecko-37@jombokolop-bluestreak-cleaner.iam.gserviceaccount.com,zakikomos-rats-7741@zakikomos-macaw-2113.iam.gserviceaccount.com,suemayern-antelope-8389@suemayern-gundi-127.iam.gserviceaccount.com,tazakumpar-little-penguin-8009@tazakumpar-silkworm-733.iam.gserviceaccount.com,debrarodgie-zebra-6163@debrarodgie-tasmanian-devil-18.iam.gserviceaccount.com,marielnickeld-spiny-mouse-2423@marielnickeld-rock-hyrax-8377.iam.gserviceaccount.com,asthercrow-waxwing-8069@project3-174303.iam.gserviceaccount.com,rumpisekret-ostrich-9769@rumpisekret-grasshopper-5471.iam.gserviceaccount.com,yanirakimble-cow-4493@project5-177506.iam.gserviceaccount.com,hellostnmusic-dogs-9871@hellostnmusic-geckos-3.iam.gserviceaccount.com,rachaelburby-donkey-9697@rachaelburby-camel-11.iam.gserviceaccount.com,layeringweb-zebu-1657@layeringweb-giant-kingfish-555.iam.gserviceaccount.com,monicabuchane-rats-9437@monicabuchane-cats-5237.iam.gserviceaccount.com,pamelladavies-african-wild-dog@pamelladavies-macaw-2749.iam.gserviceaccount.com,lavelleheidi-gelada-3989@lavelleheidi-dormouse-701.iam.gserviceaccount.com,lavelleheidi-gelada-3989@lavelleheidi-guinea-fowl-6949.iam.gserviceaccount.com,kanayazahid11-nile-crocodile-8@kanayazahid11-chipmunk-8171.iam.gserviceaccount.com,komosrondi-guinea-pigs-9371@komosrondi-california-sea-lion.iam.gserviceaccount.com,rifaixgen-lion-8059@rifaixgen-bushbaby-7517.iam.gserviceaccount.com,ktumpah-ebony-langur-4561@ktumpah-oarfish-6803.iam.gserviceaccount.com,boskuropol-harbor-seal-8803@boskuropol-mice-8317.iam.gserviceaccount.com,catherynmalley-pig-8821@catherynmalley-monarch-butterf.iam.gserviceaccount.com,tazakumpar-little-penguin-8009@tazakumpar-gerbils-1783.iam.gserviceaccount.com,hellostnmusic-dogs-9871@hellostnmusic-plankton-4153.iam.gserviceaccount.com,ktumpah-ebony-langur-4561@ktumpah-toad-8803.iam.gserviceaccount.com,choirulanwar19-henkels-leaf-ta@choirulanwar19-wallaby-5827.iam.gserviceaccount.com,meganwalace-common-genet-5297@meganwalace-tropical-two-wing.iam.gserviceaccount.com,micabukhart-horses-4021@micabukhart-tasmanian-devil-10.iam.gserviceaccount.com,stephaniesephard-old-world-fly@stephaniesephard-malayan-tiger.iam.gserviceaccount.com,suemayern-antelope-8389@suemayern-anchovy-2153.iam.gserviceaccount.com,jodiekurnia-ryu-small-clawed-a@jodiekurnia-ryu-antelope-6571.iam.gserviceaccount.com,ernatorphe-silverside-fish-871@ernatorphe-quoll-3361.iam.gserviceaccount.com,pamelladavies-african-wild-dog@pamelladavies-quoll-3767.iam.gserviceaccount.com,alisonharwick-african-wild-dog@project4-176203.iam.gserviceaccount.com,helgarowell-black-footed-cat-1@helgarowell-skipjack-tuna-7193.iam.gserviceaccount.com,peggiebarkley-turtles-2609@project6-176108.iam.gserviceaccount.com,rompalkono-beetle-9439@rompalkono-yak-4729.iam.gserviceaccount.com,miitahandika-ducks-8093@miitahandika-gar-2137.iam.gserviceaccount.com,rifaixgen-lion-8059@rifaixgen-dove-7451.iam.gserviceaccount.com,marielnickeld-spiny-mouse-2423@marielnickeld-anaconda-3469.iam.gserviceaccount.com"'
+          sitemapFile: ${{ env.SITEMAP_FILE }}
+
+      - name: PING_SITEMAP
+        uses: ./.github/actions/sitemap-ping
+        env:
+          STEP_ID: PING_SITEMAP
+        with:
+          sitemapUrl: https://tespos.wall-ix.com/x_sitemap.xml
+
+      - name: ADD_SITE_TO_INDEXER
+        uses: ./.github/actions/g-site-publisher
+        env:
+          STEP_ID: ADD_SITE_TO_INDEXER
+        with:
+          siteId: ${{ github.event.repository.name }}
+          siteUrl: ${{ env.SITE_URL }}
+          sitemapFile: ${{ env.SITEMAP_FILE }}
+
+      - name: SET_REPO_PRIVATE
+        uses: ./.github/actions/set-private-repo
+        env:
+          STEP_ID: SET_REPO_PRIVATE
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+          owner: ${{ github.actor }}
+          repo: ${{ github.event.repository.name }}
